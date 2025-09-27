@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:spended/providers/txn_providers.dart' as sl;
-import '../models/txn.dart';
+
 import '../utils/format.dart';
 import 'edit_txn_page.dart';
 
+// ใช้ radius เดียวกันทุกการ์ด
+const double _kCardRadius = 16;
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
   @override
   State<HomePage> createState() => _HomePageState();
 }
@@ -24,213 +28,236 @@ class _HomePageState extends State<HomePage> {
     final items = prov.txns;
     final balance = prov.totalBalance;
 
-    // สำหรับการ์ด KPI
-    final now = DateTime.now();
-    final prevMonth = DateTime(now.year, now.month - 1, 1);
-
     return Scaffold(
-      appBar: AppBar(title: const Text('SpendLite')),
+      appBar: AppBar(
+        title: const Text('SpendLite'),
+        centerTitle: true,
+      ),
+
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
         children: [
-          // คงเหลือ
-          _BalanceCard(amount: balance),
+          // การ์ดคงเหลือ
+          Card(
+            color: Colors.white,
+            elevation: 0.5,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(_kCardRadius),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3F3F3),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.account_balance_wallet_outlined),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text('คงเหลือ',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        )),
+                  ),
+                  Text(
+                    baht(balance),
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: balance >= 0 ? Colors.green : Colors.red,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
 
           const SizedBox(height: 12),
 
-          // KPI สองกล่องในแถวเดียว
-          FutureBuilder<Map<String, double>>(
-            future: context.read<sl.TxnProvider>().monthlySummary(now.year, now.month),
-            builder: (_, curSnap) {
-              final cur = curSnap.data ?? const {'income': 0, 'expense': 0};
-              return FutureBuilder<Map<String, double>>(
-                future: context.read<sl.TxnProvider>().monthlySummary(prevMonth.year, prevMonth.month),
-                builder: (_, prevSnap) {
-                  final prev = prevSnap.data ?? const {'income': 0, 'expense': 0};
-                  final incChange = _pctChange(prev['income'] ?? 0, cur['income'] ?? 0);
-                  final expChange = _pctChange(prev['expense'] ?? 0, cur['expense'] ?? 0);
-
-                  return Row(
-                    children: [
-                      Expanded(
-                        child: _KpiCard(
-                          title: 'รายรับ',
-                          icon: Icons.trending_up,
-                          amount: cur['income'] ?? 0,
-                          changePct: incChange,
-                          positive: true,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _KpiCard(
-                          title: 'รายจ่าย',
-                          icon: Icons.trending_down,
-                          amount: cur['expense'] ?? 0,
-                          changePct: expChange,
-                          positive: false,
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              );
-            },
+          // 2 ใบ : รายรับ / รายจ่าย (อยู่แถวเดียวกัน, radius เท่ากัน)
+          Row(
+            children: [
+              Expanded(
+                child: _MiniStatCard(
+                  title: 'รายรับ',
+                  amount: prov.monthIncome, // ค่าที่ provider คำนวณ
+                  color: Colors.green,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _MiniStatCard(
+                  title: 'รายจ่าย',
+                  amount: prov.monthExpense, // ค่าที่ provider คำนวณ
+                  color: Colors.red,
+                ),
+              ),
+            ],
           ),
 
-          const SizedBox(height: 16),
-          Text('Recent Transactions', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 20),
+
+          // หัวข้อ Recent Transactions (ไม่มีปุ่ม Add ตรงนี้แล้ว)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 6),
+            child: Text(
+              'Recent Transactions',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+          ),
 
           const SizedBox(height: 8),
 
+          // รายการธุรกรรม
           if (items.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 32),
-              child: Center(child: Text('ยังไม่มีรายการ')),
+            Card(
+              color: Colors.white,
+              elevation: 0.5,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(_kCardRadius),
+              ),
+              child: const Padding(
+                padding: EdgeInsets.all(20),
+                child: Center(child: Text('ยังไม่มีรายการ')),
+              ),
             )
           else
-            ...items.map((t) => _TxnTile(t: t)).toList(),
-          const SizedBox(height: 72),
+            ...items.map((t) {
+              final isExpense = t.type == 'expense';
+              return Card(
+                color: Colors.white,
+                elevation: 0.5,
+                margin: const EdgeInsets.only(bottom: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(_kCardRadius),
+                ),
+                child: ListTile(
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  leading: CircleAvatar(
+                    radius: 20,
+                    backgroundColor:
+                        isExpense ? Colors.red.shade50 : Colors.green.shade50,
+                    child: Icon(
+                      isExpense
+                          ? Icons.remove_circle_outline
+                          : Icons.add_circle_outline,
+                      color: isExpense ? Colors.red : Colors.green,
+                    ),
+                  ),
+                  title: Text(
+                    t.category,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: Text(t.note ?? ''),
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '${isExpense ? '-' : '+'}${baht(t.amount, withSymbol: false)}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: isExpense ? Colors.red : Colors.green,
+                        ),
+                      ),
+                      Text(
+                        '${t.date.year}-${t.date.month.toString().padLeft(2, '0')}-${t.date.day.toString().padLeft(2, '0')}',
+                        style: const TextStyle(fontSize: 12, color: Colors.black45),
+                      ),
+                    ],
+                  ),
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EditTxnPage(initial: t),
+                      ),
+                    );
+                    if (!mounted) return;
+                    await context.read<sl.TxnProvider>().load();
+                  },
+                ),
+              );
+            }),
         ],
       ),
+
+      // เอาปุ่มเพิ่มรายการ (FAB) กลับมา
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
-          await Navigator.push(context, MaterialPageRoute(builder: (_) => const EditTxnPage()));
-          if (mounted) await context.read<sl.TxnProvider>().load();
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const EditTxnPage()),
+          );
+          if (!mounted) return;
+          await context.read<sl.TxnProvider>().load();
         },
-        icon: const Icon(Icons.add),
         label: const Text('เพิ่มรายการ'),
+        icon: const Icon(Icons.add),
       ),
     );
   }
-
-  double _pctChange(double prev, double cur) {
-    if (prev <= 0) return cur > 0 ? 100.0 : 0.0;
-    return ((cur - prev) / prev * 100).clamp(-999, 999);
-  }
 }
 
-class _BalanceCard extends StatelessWidget {
-  const _BalanceCard({required this.amount});
+class _MiniStatCard extends StatelessWidget {
+  final String title;
   final double amount;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 0.5,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: Colors.black12,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.account_balance_wallet_outlined),
-            ),
-            const SizedBox(width: 12),
-            const Text('คงเหลือ', style: TextStyle(fontSize: 16)),
-            const Spacer(),
-            Text(
-              baht(amount),
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.green),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _KpiCard extends StatelessWidget {
-  const _KpiCard({
+  final Color color;
+  const _MiniStatCard({
     required this.title,
-    required this.icon,
     required this.amount,
-    required this.changePct,
-    required this.positive,
+    required this.color,
   });
 
-  final String title;
-  final IconData icon;
-  final double amount;
-  final double changePct;
-  final bool positive;
-
   @override
   Widget build(BuildContext context) {
-    final changeColor = (positive ? changePct >= 0 : changePct <= 0) ? Colors.green : Colors.red;
-
     return Card(
+      color: Colors.white,
       elevation: 0.5,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(_kCardRadius),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              Container(
-                width: 28, height: 28,
-                decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(8)),
-                child: Icon(icon, size: 18),
-              ),
-              const Spacer(),
-              Text(
-                '${changePct >= 0 ? '+' : ''}${changePct.toStringAsFixed(1)}%',
-                style: TextStyle(color: changeColor, fontWeight: FontWeight.w600),
-              ),
-            ]),
+            Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF3F3F3),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.trending_up),
+                ),
+                const Spacer(),
+              ],
+            ),
             const SizedBox(height: 8),
-            Text(title, style: const TextStyle(fontSize: 14)),
-            const SizedBox(height: 6),
-            Text(baht(amount), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 2),
-            const Text('vs last month', style: TextStyle(color: Colors.black45)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TxnTile extends StatelessWidget {
-  const _TxnTile({required this.t});
-  final Txn t;
-
-  @override
-  Widget build(BuildContext context) {
-    final isExpense = t.type == 'expense';
-    return Card(
-      elevation: 0.5,
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: (isExpense ? Colors.red : Colors.green).withOpacity(.15),
-          child: Icon(isExpense ? Icons.remove_circle_outline : Icons.add_circle_outline,
-              color: isExpense ? Colors.red : Colors.green),
-        ),
-        title: Text(t.category, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(t.note ?? ''),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
             Text(
-              '${isExpense ? '-' : '+'}${baht(t.amount, withSymbol: false)}',
-              style: TextStyle(fontWeight: FontWeight.w700, color: isExpense ? Colors.red : Colors.green),
+              title,
+              style: const TextStyle(fontSize: 14),
             ),
+            const SizedBox(height: 4),
             Text(
-              '${t.date.year}-${t.date.month.toString().padLeft(2, '0')}-${t.date.day.toString().padLeft(2, '0')}',
-              style: const TextStyle(fontSize: 12, color: Colors.black45),
+              baht(amount),
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ],
         ),
-        onTap: () async {
-          await Navigator.push(context, MaterialPageRoute(builder: (_) => EditTxnPage(initial: t)));
-          if (context.mounted) await context.read<sl.TxnProvider>().load();
-        },
       ),
     );
   }
