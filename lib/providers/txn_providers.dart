@@ -1,0 +1,143 @@
+import 'package:flutter/foundation.dart';
+import '../data/app_db.dart';
+import '../models/txn.dart';
+
+class TxnProvider extends ChangeNotifier {
+  final _db = AppDB();
+
+  List<Txn> _txns = [];
+  String _filterCategory = '';
+  String _filterType = ''; // 'income' | 'expense' | ''
+
+  List<Txn> get txns => _txns;
+  String get filterCategory => _filterCategory;
+  String get filterType => _filterType;
+
+  /// โหลดรายการ พร้อมตัวกรอง (เก็บ state filter ไว้ใน provider)
+  Future<void> load({String? category, String? type}) async {
+    _filterCategory = category ?? _filterCategory;
+    _filterType = type ?? _filterType;
+
+    _txns = await _db.getAll(
+      category: _filterCategory.isEmpty ? null : _filterCategory,
+      type: _filterType.isEmpty ? null : _filterType,
+    );
+    notifyListeners();
+  }
+
+  /// คงเหลือปัจจุบันจากรายการที่โหลดอยู่ในหน่วยความจำ
+  double get totalBalance {
+    double bal = 0;
+    for (final t in _txns) {
+      bal += (t.type == 'income') ? t.amount : -t.amount;
+    }
+    return bal;
+  }
+
+  Future<void> add(Txn t) async {
+    await _db.insert(t);
+    await load();
+  }
+
+  Future<void> updateTxn(Txn t) async {
+    await _db.update(t);
+    await load();
+  }
+
+  Future<void> remove(int id) async {
+    await _db.delete(id);
+    await load();
+  }
+
+  /// สรุปรายเดือน (รวมยอด)
+  Future<Map<String, double>> monthlySummary(int year, int month) async {
+    final list = await _db.getByMonth(year, month);
+    double inc = 0, exp = 0;
+    for (final t in list) {
+      if (t.type == 'income') {
+        inc += t.amount;
+      } else {
+        exp += t.amount;
+      }
+    }
+    return {'income': inc, 'expense': exp, 'balance': inc - exp};
+  }
+
+  /// สรุปรายวัน (รวมยอด)
+  Future<Map<String, double>> dailySummary(DateTime day) async {
+    final list = await _db.getByDay(day);
+    double inc = 0, exp = 0;
+    for (final t in list) {
+      if (t.type == 'income') {
+        inc += t.amount;
+      } else {
+        exp += t.amount;
+      }
+    }
+    return {'income': inc, 'expense': exp, 'balance': inc - exp};
+  }
+
+  /// สรุปรายเดือนแบบแยกตามหมวดหมู่ (ใช้กับ Pie chart)
+  Future<Map<String, double>> monthlyByCategory(
+    int year,
+    int month, {
+    String? type, // 'expense' | 'income' | null = รวมทุกประเภท
+  }) async {
+    final list = await _db.getByMonth(year, month);
+    final Map<String, double> sum = {};
+    for (final t in list) {
+      if (type != null && t.type != type) continue;
+      sum[t.category] = (sum[t.category] ?? 0) + t.amount;
+    }
+    final entries = sum.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    return {for (final e in entries) e.key: e.value};
+  }
+
+  /// สรุปรายวันแบบแยกตามหมวดหมู่
+  Future<Map<String, double>> dailyByCategory(
+    DateTime day, {
+    String? type, // 'expense' | 'income' | null
+  }) async {
+    final list = await _db.getByDay(day);
+    final Map<String, double> sum = {};
+    for (final t in list) {
+      if (type != null && t.type != type) continue;
+      sum[t.category] = (sum[t.category] ?? 0) + t.amount;
+    }
+    final entries = sum.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    return {for (final e in entries) e.key: e.value};
+  }
+
+  /// KPI เดือนนี้ + % เทียบเดือนก่อน (ใช้ทำการ์ดบนหน้า Home)
+  Future<Map<String, double>> monthKpis(DateTime month) async {
+    final y = month.year, m = month.month;
+
+    // เดือนนี้
+    final thisList = await _db.getByMonth(y, m);
+    double inc = 0, exp = 0;
+    for (final t in thisList) {
+      if (t.type == 'income') inc += t.amount;
+      else exp += t.amount;
+    }
+
+    // เดือนก่อน
+    final prev = DateTime(y, m - 1, 1);
+    final prevList = await _db.getByMonth(prev.year, prev.month);
+    double incPrev = 0, expPrev = 0;
+    for (final t in prevList) {
+      if (t.type == 'income') incPrev += t.amount;
+      else expPrev += t.amount;
+    }
+
+    final incomeChange = incPrev == 0 ? (inc > 0 ? 100.0 : 0.0) : ((inc - incPrev) / incPrev * 100);
+    final expenseChange = expPrev == 0 ? (exp > 0 ? 100.0 : 0.0) : ((exp - expPrev) / expPrev * 100);
+
+    return {
+      'income': inc,
+      'expense': exp,
+      'balance': inc - exp,
+      'income_change': incomeChange,
+      'expense_change': expenseChange,
+    };
+  }
+}
