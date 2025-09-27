@@ -1,6 +1,6 @@
-# spended
-
-A new Flutter project.
+# Spended จ่ายแล้วจด
+ 
+A Expense tracker Flutter project.
 
 ## Getting Started
 
