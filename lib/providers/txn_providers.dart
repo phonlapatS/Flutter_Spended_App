@@ -14,7 +14,7 @@ class TxnProvider extends ChangeNotifier {
   String get filterCategory => _filterCategory;
   String get filterType => _filterType;
 
-  /// โหลดรายการ (สามารถกรอง category / type ได้)
+  /// โหลดรายการ (ถ้าต้องการกรองให้ส่งค่าเข้ามา)
   Future<void> load({String? category, String? type}) async {
     _filterCategory = category ?? _filterCategory;
     _filterType = type ?? _filterType;
@@ -35,7 +35,7 @@ class TxnProvider extends ChangeNotifier {
     return bal;
   }
 
-  /// >>> เพิ่มสอง getter นี้ เพื่อใช้กับการ์ด “รายรับ/รายจ่าย” <<<
+  /// ⬇️ เพิ่มใหม่: ใช้แสดงการ์ด “รายรับ/รายจ่าย” แบบรวดเร็วจากรายการที่มีอยู่ใน provider ตอนนี้
   double get monthIncome =>
       _txns.where((t) => t.type == 'income').fold(0.0, (p, t) => p + t.amount);
 
@@ -57,7 +57,7 @@ class TxnProvider extends ChangeNotifier {
     await load();
   }
 
-  /// สรุปทั้งเดือน (รวมรายรับ/รายจ่าย/คงเหลือ)
+  /// สรุปรายเดือน (รวมรับ/จ่าย/คงเหลือ)
   Future<Map<String, double>> monthlySummary(int year, int month) async {
     final list = await _db.getByMonth(year, month);
     double inc = 0, exp = 0;
@@ -85,11 +85,11 @@ class TxnProvider extends ChangeNotifier {
     return {'income': inc, 'expense': exp, 'balance': inc - exp};
   }
 
-  /// สรุปแยกตามหมวดหมู่ (ทั้งเดือน) พร้อม option กรองชนิด
+  /// สรุปรายเดือนแบบ “แยกตามหมวดหมู่”
   Future<Map<String, double>> monthlyByCategory(
     int year,
     int month, {
-    String? type, // 'expense' | 'income' | null = รวมทั้งสองฝั่ง
+    String? type, // 'expense' | 'income' | null
   }) async {
     final list = await _db.getByMonth(year, month);
     final Map<String, double> sum = {};
@@ -102,7 +102,7 @@ class TxnProvider extends ChangeNotifier {
     return {for (final e in entries) e.key: e.value};
   }
 
-  /// สรุปแยกตามหมวดหมู่ (รายวัน) พร้อม option กรองชนิด
+  /// สรุปรายวันแบบ “แยกตามหมวดหมู่”
   Future<Map<String, double>> dailyByCategory(
     DateTime day, {
     String? type, // 'expense' | 'income' | null

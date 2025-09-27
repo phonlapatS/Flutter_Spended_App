@@ -9,26 +9,38 @@ class TxnTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isExpense = t.type == 'expense';
+
     return ListTile(
       leading: CircleAvatar(
-        backgroundColor: isExpense ? Colors.red.shade100 : Colors.green.shade100,
-        child: Icon(isExpense ? Icons.remove_circle_outline : Icons.add_circle_outline,
-            color: isExpense ? Colors.red : Colors.green),
+        backgroundColor:
+            isExpense ? Colors.red.shade100 : Colors.green.shade100,
+        child: Icon(
+          isExpense
+              ? Icons.remove_circle_outline
+              : Icons.add_circle_outline,
+          color: isExpense ? Colors.red : Colors.green,
+        ),
       ),
-      title: Text(t.category, style: const TextStyle(fontWeight: FontWeight.w600)),
+      title: Text(
+        t.category,
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ),
       subtitle: Text(t.note ?? ''),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
+          // ✅ เรียกแบบไม่ใส่พารามิเตอร์ withSymbol แล้ว
           Text(
-            signedBaht(t.type, t.amount, withSymbol: true),
+            signedBaht(t.type, t.amount),
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: isExpense ? Colors.red : Colors.green,
             ),
           ),
-          Text('${t.date.year}-${t.date.month.toString().padLeft(2, '0')}-${t.date.day.toString().padLeft(2, '0')}'),
+          Text(
+            '${t.date.year}-${t.date.month.toString().padLeft(2, '0')}-${t.date.day.toString().padLeft(2, '0')}',
+          ),
         ],
       ),
     );
