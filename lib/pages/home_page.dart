@@ -1,12 +1,9 @@
+// lib/pages/home_page.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:spended/providers/txn_providers.dart' as sl;
-
 import '../utils/format.dart';
 import 'edit_txn_page.dart';
-
-// ใช้ radius เดียวกันทุกการ์ด
-const double _kCardRadius = 16;
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -19,6 +16,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    // โหลดข้อมูลครั้งแรก
     Future.microtask(() => context.read<sl.TxnProvider>().load());
   }
 
@@ -26,67 +24,27 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final prov = context.watch<sl.TxnProvider>();
     final items = prov.txns;
-    final balance = prov.totalBalance;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('SpendLite'),
         centerTitle: true,
       ),
-
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
           // การ์ดคงเหลือ
-          Card(
-            color: Colors.white,
-            elevation: 0.5,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(_kCardRadius),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF3F3F3),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.account_balance_wallet_outlined),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text('คงเหลือ',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        )),
-                  ),
-                  Text(
-                    baht(balance),
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: balance >= 0 ? Colors.green : Colors.red,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          _BalanceCard(balance: prov.totalBalance),
 
           const SizedBox(height: 12),
 
-          // 2 ใบ : รายรับ / รายจ่าย (อยู่แถวเดียวกัน, radius เท่ากัน)
+          // การ์ด รายรับ / รายจ่าย (อยู่แถวเดียวกัน)
           Row(
             children: [
               Expanded(
                 child: _MiniStatCard(
                   title: 'รายรับ',
-                  amount: prov.monthIncome, // ค่าที่ provider คำนวณ
+                  amount: prov.monthIncome,
                   color: Colors.green,
                 ),
               ),
@@ -94,36 +52,28 @@ class _HomePageState extends State<HomePage> {
               Expanded(
                 child: _MiniStatCard(
                   title: 'รายจ่าย',
-                  amount: prov.monthExpense, // ค่าที่ provider คำนวณ
+                  amount: prov.monthExpense,
                   color: Colors.red,
                 ),
               ),
             ],
           ),
 
-          const SizedBox(height: 20),
-
-          // หัวข้อ Recent Transactions (ไม่มีปุ่ม Add ตรงนี้แล้ว)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 6),
-            child: Text(
-              'Recent Transactions',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-            ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Text(
+                'Recent Transactions',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ],
           ),
-
           const SizedBox(height: 8),
 
-          // รายการธุรกรรม
           if (items.isEmpty)
-            Card(
-              color: Colors.white,
-              elevation: 0.5,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(_kCardRadius),
-              ),
-              child: const Padding(
-                padding: EdgeInsets.all(20),
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(16),
                 child: Center(child: Text('ยังไม่มีรายการ')),
               ),
             )
@@ -131,19 +81,20 @@ class _HomePageState extends State<HomePage> {
             ...items.map((t) {
               final isExpense = t.type == 'expense';
               return Card(
-                color: Colors.white,
-                elevation: 0.5,
-                margin: const EdgeInsets.only(bottom: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(_kCardRadius),
-                ),
+                margin: const EdgeInsets.symmetric(vertical: 6),
                 child: ListTile(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EditTxnPage(initial: t),
+                      ),
+                    );
+                    if (mounted) await context.read<sl.TxnProvider>().load();
+                  },
                   leading: CircleAvatar(
-                    radius: 20,
                     backgroundColor:
-                        isExpense ? Colors.red.shade50 : Colors.green.shade50,
+                        isExpense ? Colors.red.shade100 : Colors.green.shade100,
                     child: Icon(
                       isExpense
                           ? Icons.remove_circle_outline
@@ -153,108 +104,135 @@ class _HomePageState extends State<HomePage> {
                   ),
                   title: Text(
                     t.category,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   subtitle: Text(t.note ?? ''),
                   trailing: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
+                      // >>> แก้ตรงนี้: เอา withSymbol ออก <<<
                       Text(
-                        '${isExpense ? '-' : '+'}${baht(t.amount, withSymbol: false)}',
+                        '${isExpense ? '-' : '+'}${baht(t.amount)}',
                         style: TextStyle(
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.bold,
                           color: isExpense ? Colors.red : Colors.green,
                         ),
                       ),
                       Text(
                         '${t.date.year}-${t.date.month.toString().padLeft(2, '0')}-${t.date.day.toString().padLeft(2, '0')}',
-                        style: const TextStyle(fontSize: 12, color: Colors.black45),
+                        style: const TextStyle(color: Colors.black45, fontSize: 12),
                       ),
                     ],
                   ),
-                  onTap: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => EditTxnPage(initial: t),
-                      ),
-                    );
-                    if (!mounted) return;
-                    await context.read<sl.TxnProvider>().load();
-                  },
                 ),
               );
             }),
+          const SizedBox(height: 72),
         ],
       ),
-
-      // เอาปุ่มเพิ่มรายการ (FAB) กลับมา
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           await Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const EditTxnPage()),
           );
-          if (!mounted) return;
-          await context.read<sl.TxnProvider>().load();
+          if (mounted) await context.read<sl.TxnProvider>().load();
         },
-        label: const Text('เพิ่มรายการ'),
         icon: const Icon(Icons.add),
+        label: const Text('เพิ่มรายการ'),
+      ),
+    );
+  }
+}
+
+class _BalanceCard extends StatelessWidget {
+  const _BalanceCard({required this.balance});
+  final double balance;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = balance >= 0 ? Colors.green : Colors.red;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.black12,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.account_balance_wallet_outlined),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('คงเหลือ', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 4),
+                  Text(
+                    baht(balance),
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineSmall
+                        ?.copyWith(color: color, fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _MiniStatCard extends StatelessWidget {
-  final String title;
-  final double amount;
-  final Color color;
   const _MiniStatCard({
     required this.title,
     required this.amount,
     required this.color,
   });
 
+  final String title;
+  final double amount;
+  final Color color;
+
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: Colors.white,
-      elevation: 0.5,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(_kCardRadius),
-      ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Container(
-                  width: 34,
-                  height: 34,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF3F3F3),
-                    borderRadius: BorderRadius.circular(10),
+                    color: Colors.black12,
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(Icons.trending_up),
                 ),
                 const Spacer(),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 14),
-            ),
+            const SizedBox(height: 10),
+            Text(title, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 4),
             Text(
               baht(amount),
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-              ),
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w800),
             ),
           ],
         ),

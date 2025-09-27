@@ -1,3 +1,4 @@
+// lib/providers/txn_providers.dart
 import 'package:flutter/foundation.dart';
 import '../data/app_db.dart';
 import '../models/txn.dart';
@@ -7,13 +8,13 @@ class TxnProvider extends ChangeNotifier {
 
   List<Txn> _txns = [];
   String _filterCategory = '';
-  String _filterType = ''; // 'income' | 'expense' | ''
+  String _filterType = '';
 
   List<Txn> get txns => _txns;
   String get filterCategory => _filterCategory;
   String get filterType => _filterType;
 
-  /// โหลดรายการ พร้อมตัวกรอง (เก็บ state filter ไว้ใน provider)
+  /// โหลดรายการ (สามารถกรอง category / type ได้)
   Future<void> load({String? category, String? type}) async {
     _filterCategory = category ?? _filterCategory;
     _filterType = type ?? _filterType;
@@ -25,7 +26,7 @@ class TxnProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// คงเหลือปัจจุบันจากรายการที่โหลดอยู่ในหน่วยความจำ
+  /// ยอดคงเหลือจากรายการที่โหลดอยู่ตอนนี้
   double get totalBalance {
     double bal = 0;
     for (final t in _txns) {
@@ -33,6 +34,13 @@ class TxnProvider extends ChangeNotifier {
     }
     return bal;
   }
+
+  /// >>> เพิ่มสอง getter นี้ เพื่อใช้กับการ์ด “รายรับ/รายจ่าย” <<<
+  double get monthIncome =>
+      _txns.where((t) => t.type == 'income').fold(0.0, (p, t) => p + t.amount);
+
+  double get monthExpense =>
+      _txns.where((t) => t.type == 'expense').fold(0.0, (p, t) => p + t.amount);
 
   Future<void> add(Txn t) async {
     await _db.insert(t);
@@ -49,7 +57,7 @@ class TxnProvider extends ChangeNotifier {
     await load();
   }
 
-  /// สรุปรายเดือน (รวมยอด)
+  /// สรุปทั้งเดือน (รวมรายรับ/รายจ่าย/คงเหลือ)
   Future<Map<String, double>> monthlySummary(int year, int month) async {
     final list = await _db.getByMonth(year, month);
     double inc = 0, exp = 0;
@@ -63,7 +71,7 @@ class TxnProvider extends ChangeNotifier {
     return {'income': inc, 'expense': exp, 'balance': inc - exp};
   }
 
-  /// สรุปรายวัน (รวมยอด)
+  /// สรุปรายวัน
   Future<Map<String, double>> dailySummary(DateTime day) async {
     final list = await _db.getByDay(day);
     double inc = 0, exp = 0;
@@ -77,11 +85,11 @@ class TxnProvider extends ChangeNotifier {
     return {'income': inc, 'expense': exp, 'balance': inc - exp};
   }
 
-  /// สรุปรายเดือนแบบแยกตามหมวดหมู่ (ใช้กับ Pie chart)
+  /// สรุปแยกตามหมวดหมู่ (ทั้งเดือน) พร้อม option กรองชนิด
   Future<Map<String, double>> monthlyByCategory(
     int year,
     int month, {
-    String? type, // 'expense' | 'income' | null = รวมทุกประเภท
+    String? type, // 'expense' | 'income' | null = รวมทั้งสองฝั่ง
   }) async {
     final list = await _db.getByMonth(year, month);
     final Map<String, double> sum = {};
@@ -89,11 +97,12 @@ class TxnProvider extends ChangeNotifier {
       if (type != null && t.type != type) continue;
       sum[t.category] = (sum[t.category] ?? 0) + t.amount;
     }
-    final entries = sum.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final entries = sum.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
     return {for (final e in entries) e.key: e.value};
   }
 
-  /// สรุปรายวันแบบแยกตามหมวดหมู่
+  /// สรุปแยกตามหมวดหมู่ (รายวัน) พร้อม option กรองชนิด
   Future<Map<String, double>> dailyByCategory(
     DateTime day, {
     String? type, // 'expense' | 'income' | null
@@ -104,40 +113,8 @@ class TxnProvider extends ChangeNotifier {
       if (type != null && t.type != type) continue;
       sum[t.category] = (sum[t.category] ?? 0) + t.amount;
     }
-    final entries = sum.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final entries = sum.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
     return {for (final e in entries) e.key: e.value};
-  }
-
-  /// KPI เดือนนี้ + % เทียบเดือนก่อน (ใช้ทำการ์ดบนหน้า Home)
-  Future<Map<String, double>> monthKpis(DateTime month) async {
-    final y = month.year, m = month.month;
-
-    // เดือนนี้
-    final thisList = await _db.getByMonth(y, m);
-    double inc = 0, exp = 0;
-    for (final t in thisList) {
-      if (t.type == 'income') inc += t.amount;
-      else exp += t.amount;
-    }
-
-    // เดือนก่อน
-    final prev = DateTime(y, m - 1, 1);
-    final prevList = await _db.getByMonth(prev.year, prev.month);
-    double incPrev = 0, expPrev = 0;
-    for (final t in prevList) {
-      if (t.type == 'income') incPrev += t.amount;
-      else expPrev += t.amount;
-    }
-
-    final incomeChange = incPrev == 0 ? (inc > 0 ? 100.0 : 0.0) : ((inc - incPrev) / incPrev * 100);
-    final expenseChange = expPrev == 0 ? (exp > 0 ? 100.0 : 0.0) : ((exp - expPrev) / expPrev * 100);
-
-    return {
-      'income': inc,
-      'expense': exp,
-      'balance': inc - exp,
-      'income_change': incomeChange,
-      'expense_change': expenseChange,
-    };
   }
 }
