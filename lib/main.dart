@@ -1,13 +1,20 @@
+// lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:spended/providers/txn_providers.dart' as prov;
 
-import 'pages/home_page.dart';
-import 'pages/summary_page.dart';
+import 'providers/txn_providers.dart';
+
+// ตั้ง alias กันชื่อชน
+import 'pages/home_page.dart' as hp;
+import 'pages/summary_page.dart' as sp;
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  runApp(const SpendLiteApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => TxnProvider()..load(),
+      child: const SpendLiteApp(),
+    ),
+  );
 }
 
 class SpendLiteApp extends StatelessWidget {
@@ -15,59 +22,32 @@ class SpendLiteApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const peach = Color(0xFFFFEFDC);        // พื้นหลังครีม
-    const peachStrong = Color(0xFFFBD6C3);  // พีชเข้ม (appbar/nav)
-
-    final base = ThemeData(
-      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF8D6E63)),
-      useMaterial3: true,
-    );
-
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => prov.TxnProvider()),
-      ],
-      child: MaterialApp(
-        title: 'SpendLite',
-        theme: base.copyWith(
-          scaffoldBackgroundColor: peach,
-          appBarTheme: const AppBarTheme(
-            backgroundColor: peachStrong,
-            foregroundColor: Color(0xFF4E342E),
-            centerTitle: true,
-            elevation: 0,
-          ),
-          bottomAppBarTheme: const BottomAppBarTheme(color: peachStrong),
-          navigationBarTheme: const NavigationBarThemeData(
-            backgroundColor: peachStrong,
-            indicatorColor: Color(0xFFFFF5E5),
-            labelTextStyle: WidgetStatePropertyAll(
-              TextStyle(color: Color(0xFF5D4037)),
-            ),
-          ),
-          // กล่อง/ป้ายรายการให้สีขาวเด่นกว่าพื้นหลัง
-          cardColor: Colors.white,
-          listTileTheme: const ListTileThemeData(
-            tileColor: Colors.white,
-            iconColor: Colors.black54,
-            textColor: Colors.black87,
-          ),
-        ),
-        home: const _RootTabs(),
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'SpendLite',
+      theme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: const Color(0xFFFFD9C5),
       ),
+      home: const RootTabs(),
     );
   }
 }
 
-class _RootTabs extends StatefulWidget {
-  const _RootTabs();
+class RootTabs extends StatefulWidget {
+  const RootTabs({super.key});
   @override
-  State<_RootTabs> createState() => _RootTabsState();
+  State<RootTabs> createState() => _RootTabsState();
 }
 
-class _RootTabsState extends State<_RootTabs> {
+class _RootTabsState extends State<RootTabs> {
   int _idx = 0;
-  final _pages = [const HomePage(), const SummaryPage()];
+
+  // อ้างผ่าน alias ให้ชัดเจน
+  final _pages = const [
+    hp.HomePage(),
+    sp.SummaryPage(),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -76,8 +56,16 @@ class _RootTabsState extends State<_RootTabs> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _idx,
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.list_alt_outlined), selectedIcon: Icon(Icons.list_alt), label: 'รายการ'),
-          NavigationDestination(icon: Icon(Icons.pie_chart_outline), selectedIcon: Icon(Icons.pie_chart), label: 'สรุป'),
+          NavigationDestination(
+            icon: Icon(Icons.list_alt_outlined),
+            selectedIcon: Icon(Icons.list_alt),
+            label: 'รายการ',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.pie_chart_outline),
+            selectedIcon: Icon(Icons.pie_chart),
+            label: 'สรุป',
+          ),
         ],
         onDestinationSelected: (i) => setState(() => _idx = i),
       ),

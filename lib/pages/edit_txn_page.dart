@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:spended/providers/txn_providers.dart' as prov;
-import '../models/txn.dart' as model;                 // << ใช้โมเดลที่แท้จริง
+import '../models/txn.dart';
+import '../providers/txn_providers.dart' as prov;
 import '../theme/category_colors.dart';
-import '../utils/format.dart';
 
 class EditTxnPage extends StatefulWidget {
   const EditTxnPage({super.key, this.initial});
-  final model.Txn? initial;
+  final Txn? initial;
 
   @override
   State<EditTxnPage> createState() => _EditTxnPageState();
@@ -36,9 +35,9 @@ class _EditTxnPageState extends State<EditTxnPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isExpense = _type == 'expense';
-    final cats = isExpense ? kExpenseColors.keys.toList()
-                           : kIncomeColors.keys.toList();
+    final cats = _type == 'expense'
+        ? kExpenseColors.keys.toList()
+        : kIncomeColors.keys.toList();
 
     return Scaffold(
       appBar: AppBar(title: Text(widget.initial == null ? 'เพิ่มรายการ' : 'แก้ไขรายการ')),
@@ -52,18 +51,16 @@ class _EditTxnPageState extends State<EditTxnPage> {
                 ButtonSegment(value: 'expense', label: Text('รายจ่าย')),
                 ButtonSegment(value: 'income', label: Text('รายรับ')),
               ],
-              showSelectedIcon: false,               // ขนาดไม่แกว่ง
               selected: {_type},
-              onSelectionChanged: (s) {
-                setState(() {
-                  _type = s.first;
-                  if (_type == 'expense' && !kExpenseColors.containsKey(_category)) {
-                    _category = 'อาหาร';
-                  } else if (_type == 'income' && !kIncomeColors.containsKey(_category)) {
-                    _category = 'เงินเดือน';
-                  }
-                });
-              },
+              onSelectionChanged: (s) => setState(() {
+                _type = s.first;
+                // ถ้าหมวดปัจจุบันไม่อยู่ในชุด ให้รีเซ็ตค่าเริ่มต้น
+                if (_type == 'expense' && !kExpenseColors.containsKey(_category)) {
+                  _category = 'อาหาร';
+                } else if (_type == 'income' && !kIncomeColors.containsKey(_category)) {
+                  _category = 'เงินเดือน';
+                }
+              }),
             ),
             const SizedBox(height: 12),
 
@@ -88,7 +85,7 @@ class _EditTxnPageState extends State<EditTxnPage> {
                         Text(c),
                       ],
                     ),
-                  )
+                  ),
               ],
               onChanged: (v) => setState(() => _category = v!),
               decoration: const InputDecoration(labelText: 'หมวดหมู่'),
@@ -111,22 +108,37 @@ class _EditTxnPageState extends State<EditTxnPage> {
             ),
             const SizedBox(height: 12),
 
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('วันที่'),
-              subtitle: Text(
-                '${_date.year}-${_date.month.toString().padLeft(2, '0')}-${_date.day.toString().padLeft(2, '0')}',
+            Card(
+              color: Colors.white,
+              surfaceTintColor: Colors.white,
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: ListTile(
+                title: const Text('วันที่'),
+                subtitle: Text(
+                  '${_date.year}-${_date.month.toString().padLeft(2, '0')}-${_date.day.toString().padLeft(2, '0')}',
+                ),
+                trailing: const Icon(Icons.calendar_today_outlined),
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: _date,
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(2100),
+                    builder: (ctx, child) {
+                      // ปรับป๊อปอัปปฏิทินพื้นขาว
+                      return Theme(
+                        data: Theme.of(ctx).copyWith(
+                          dialogBackgroundColor: Colors.white,
+                          colorScheme: Theme.of(ctx).colorScheme.copyWith(surface: Colors.white),
+                        ),
+                        child: child!,
+                      );
+                    },
+                  );
+                  if (picked != null) setState(() => _date = picked);
+                },
               ),
-              trailing: const Icon(Icons.calendar_today_outlined),
-              onTap: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: _date,
-                  firstDate: DateTime(2000),
-                  lastDate: DateTime(2100),
-                );
-                if (picked != null) setState(() => _date = picked);
-              },
             ),
             const SizedBox(height: 16),
 
@@ -135,7 +147,7 @@ class _EditTxnPageState extends State<EditTxnPage> {
                 if (!_form.currentState!.validate()) return;
                 _form.currentState!.save();
 
-                final t = model.Txn(
+                final t = Txn(
                   id: widget.initial?.id,
                   type: _type,
                   amount: _amount,

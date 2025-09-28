@@ -1,14 +1,15 @@
 import 'package:intl/intl.dart';
 
-final _money = NumberFormat.currency(locale: 'th_TH', symbol: '฿', decimalDigits: 2);
+final _fmt = NumberFormat('#,##0.00');
 
-String baht(double v, {bool symbol = true}) {
-  final s = _money.format(v);
-  return symbol ? s : s.replaceFirst('฿', '');
+/// แปลงจำนวนเงินเป็นสตริง
+String baht(double v, {bool withSymbol = true}) {
+  final s = _fmt.format(v);
+  return withSymbol ? '฿$s' : s;
 }
 
-String signedBaht(String type, double amount) {
-  // type: 'expense' | 'income'
+/// ใส่เครื่องหมาย + / - ตามประเภท
+String signedBaht(String type, double amount, {bool withSymbol = true}) {
   final sign = type == 'expense' ? '-' : '+';
-  return '$sign${baht(amount)}';
+  return '$sign${baht(amount, withSymbol: withSymbol)}';
 }

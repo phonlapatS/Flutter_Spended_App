@@ -1,13 +1,13 @@
-// lib/pages/home_page.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:spended/providers/txn_providers.dart' as sl;
-import 'edit_txn_page.dart';
+import '../providers/txn_providers.dart' as sl;
 import '../utils/format.dart';
+import '../widgets/txn_tiles.dart';
+// ⬇️ เพิ่ม import หน้าสำหรับเพิ่ม/แก้ไขรายการ
+import 'edit_txn_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
-
   @override
   State<HomePage> createState() => _HomePageState();
 }
@@ -16,157 +16,115 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    // โหลดข้อมูลครั้งแรก
-    Future.microtask(() => context.read<sl.TxnProvider>().load());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<sl.TxnProvider>().load();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final prov = context.watch<sl.TxnProvider>();
-    final items = prov.txns;
-    final balance = prov.totalBalance;
-    final income = prov.monthIncome;   // ⬅ ใช้ getter ใหม่
-    final expense = prov.monthExpense; // ⬅ ใช้ getter ใหม่
+    final txns = prov.txns;
+
+    final now = DateTime.now();
+    final int y = now.year, m = now.month;
+
+    double monthIncome = 0, monthExpense = 0, balance = 0;
+    for (final t in txns) {
+      if (t.date.year == y && t.date.month == m) {
+        if (t.type == 'income') {
+          monthIncome += t.amount;
+        } else {
+          monthExpense += t.amount;
+        }
+      }
+      balance += (t.type == 'income') ? t.amount : -t.amount;
+    }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('SpendLite')),
+      appBar: AppBar(title: const Text('SpendLite'), centerTitle: true),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         children: [
-          // การ์ดคงเหลือ
+          // ===== คงเหลือ =====
           Card(
-            elevation: 0.5,
+            color: Colors.white,
+            surfaceTintColor: Colors.white,
+            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
                   Container(
-                    width: 44, height: 44,
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
+                      color: Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.account_balance_wallet_outlined),
+                    child: const Icon(Icons.account_balance_wallet_outlined,
+                        size: 24, color: Colors.black54),
                   ),
                   const SizedBox(width: 12),
                   const Expanded(
-                    child: Text('คงเหลือ', style: TextStyle(fontSize: 16)),
+                    child: Text('คงเหลือ',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   ),
                   Text(
                     baht(balance),
-                    style: TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.bold,
-                      color: balance >= 0 ? Colors.green : Colors.red,
-                    ),
+                    style: const TextStyle(
+                      fontSize: 22, fontWeight: FontWeight.w800, color: Colors.green),
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 12),
 
-          // แถวการ์ด “รายรับ / รายจ่าย”
+          const SizedBox(height: 16),
+
+          // ===== การ์ด: รายรับ / รายจ่าย =====
           Row(
             children: [
               Expanded(
                 child: _MiniStatCard(
-                  title: 'รายรับ',
-                  amount: income,
-                  color: Colors.green,
-                ),
+                  title: 'รายรับ', amount: monthIncome, icon: Icons.trending_up),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               Expanded(
                 child: _MiniStatCard(
-                  title: 'รายจ่าย',
-                  amount: expense,
-                  color: Colors.red,
-                ),
+                  title: 'รายจ่าย', amount: monthExpense, icon: Icons.trending_down),
               ),
             ],
           ),
-          const SizedBox(height: 16),
 
-          // หัวข้อ Recent
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              Text('Recent Transactions',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-            ],
+          const SizedBox(height: 24),
+
+          const Text('Recent Transactions',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 12),
+
+          ...txns.take(20).map(
+            (t) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: TxnTile(t: t),
+            ),
           ),
-          const SizedBox(height: 8),
-
-          // รายการธุรกรรม
-          if (items.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 24),
-              child: Center(child: Text('ยังไม่มีรายการ')),
-            )
-          else
-            ...items.map((t) {
-              final isExpense = t.type == 'expense';
-              return Card(
-                elevation: 0.3,
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: isExpense
-                        ? Colors.red.shade50
-                        : Colors.green.shade50,
-                    child: Icon(
-                      isExpense ? Icons.remove : Icons.add,
-                      color: isExpense ? Colors.red : Colors.green,
-                    ),
-                  ),
-                  title: Text(
-                    t.category,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(t.note ?? ''),
-                  trailing: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      // ⬇️ เอา withSymbol ออก
-                      Text(
-                        '${isExpense ? '-' : '+'}${baht(t.amount)}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: isExpense ? Colors.red : Colors.green,
-                        ),
-                      ),
-                      Text(
-                        '${t.date.year}-${t.date.month.toString().padLeft(2, '0')}-${t.date.day.toString().padLeft(2, '0')}',
-                        style: const TextStyle(fontSize: 12, color: Colors.black45),
-                      ),
-                    ],
-                  ),
-                  onTap: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => EditTxnPage(initial: t)),
-                    );
-                    if (mounted) await context.read<sl.TxnProvider>().load();
-                  },
-                ),
-              );
-            }),
         ],
       ),
 
-      // FAB (คงไว้ตามที่ขอ)
+      // ⬇️ นำทางไปหน้าเพิ่มรายการ + reload เมื่อกลับมา
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           await Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const EditTxnPage()),
           );
-          if (mounted) await context.read<sl.TxnProvider>().load();
+          if (mounted) context.read<sl.TxnProvider>().load();
         },
         icon: const Icon(Icons.add),
         label: const Text('เพิ่มรายการ'),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }
@@ -175,46 +133,58 @@ class _MiniStatCard extends StatelessWidget {
   const _MiniStatCard({
     required this.title,
     required this.amount,
-    required this.color,
+    required this.icon,
   });
 
   final String title;
   final double amount;
-  final Color color;
+  final IconData icon;
+
+  static const double _fixedHeight = 160;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0.5,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 32, height: 32,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.trending_up),
+    return SizedBox(
+      height: _fixedHeight,
+      child: Card(
+        color: Colors.white,
+        surfaceTintColor: Colors.white,
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const Spacer(),
-                // ตำแหน่งใส่ % growth ภายหลัง (ถ้าต้องการ)
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(title, style: const TextStyle(fontSize: 14)),
-            const SizedBox(height: 2),
-            Text(
-              baht(amount),
-              style: const TextStyle(
-                fontSize: 22, fontWeight: FontWeight.w800,
+                child: Icon(icon, size: 22, color: Colors.black54),
               ),
-            ),
-          ],
+              const Spacer(),
+              Text(title, style: const TextStyle(fontSize: 15, color: Colors.black87)),
+              const SizedBox(height: 6),
+              LayoutBuilder(
+                builder: (context, constraints) => ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: constraints.maxWidth),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      baht(amount),
+                      maxLines: 1,
+                      softWrap: false,
+                      style: const TextStyle(
+                        fontSize: 30, fontWeight: FontWeight.w900, color: Colors.black87),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
