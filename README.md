@@ -57,29 +57,6 @@ A Expense tracker Flutter project.
 
 ---
 
-## โครงสร้างโฟลเดอร์
-
-lib/
-├─ pages/ # Home, Summary, EditTxn (หน้าต่าง ๆ ของแอพ)
-│ ├─ home_page.dart
-│ ├─ summary_page.dart
-│ └─ edit_txn_page.dart
-├─ providers/ # TxnProvider (โหลด/เพิ่ม/แก้ไข/ลบ + สรุปข้อมูล)
-│ └─ txn_providers.dart
-├─ theme/ # สีและไอคอนของแต่ละหมวด
-│ └─ category_colors.dart
-├─ widgets/ # วิดเจ็ตย่อย ๆ (เช่นแถวรายการ)
-│ └─ txn_tiles.dart
-├─ utils/ # ตัวช่วยจัดรูปแบบเงิน/วันที่ ฯลฯ
-│ └─ format.dart
-├─ data/ # local database (เช่น AppDB)
-│ └─ app_db.dart
-├─ models/ # โมเดลข้อมูล
-│ └─ txn.dart
-└─ main.dart # จุดเริ่มต้นของแอพ
-
----
-
 ## วิธีใช้งาน
 
 1. เปิดแอป → ไปที่ **หน้ารายการ (Home)**
