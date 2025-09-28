@@ -1,17 +1,67 @@
 # Spended จ่ายแล้วจด
- 
 A Expense tracker Flutter project.
 
-## Getting Started
+แอพ **Spended** คือแอพจดบันทึกรายรับ–รายจ่ายแบบเบา ๆ ดีไซน์โทนครีม–พีช ใช้งานง่ายเป็นหลัก:
+- **รายการ (Home):** บันทึกรายการและดูยอดคงเหลือ
+- **สรุป (Summary):** ดู Pie Chart รายวัน/รายเดือน แยกตามหมวดหมู่
 
-This project is a starting point for a Flutter application.
+---
 
-A few resources to get you started if this is your first Flutter project:
+## คุณสมบัติ
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+- การ์ด “คงเหลือ”, “รายรับ”, “รายจ่าย” (พื้นหลังขาว, โค้ง 16)
+- รายการล่าสุดพร้อมไอคอนสีตามชนิด (+เขียว / −แดง)
+- ฟอร์มเพิ่ม/แก้ไขรายการ:
+  - ชนิด: `รายจ่าย` หรือ `รายรับ`
+  - หมวดหมู่พร้อม **ไอคอนและสีเฉพาะหมวด**
+  - จำนวนเงิน, หมายเหตุ, วันที่ (Date Picker)
+- หน้าสรุป:
+  - สลับดู **รายวัน/รายเดือน** และ **รายจ่าย/รายรับ**
+  - **Pie Chart** ใช้สีจากหมวด (ไม่สุ่มพาเล็ต)
+  - รายการสรุปด้านล่างเลื่อนดูได้ไม่จำกัดจำนวน
+- เก็บข้อมูลออฟไลน์ผ่าน `AppDB` และจัดการด้วย `TxnProvider`
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-# Flutter_Spended_App
+---
+
+## สกรีนช็อต (ตัวอย่าง)
+
+<!-- แถวที่ 1 -->
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/a340548d-3412-4007-9a2d-130cf13c2b43"
+       alt="หน้ารายการ: การ์ดสรุปยอดคงเหลือ"
+       height="520" />
+  &nbsp;&nbsp;
+  <img src="https://github.com/user-attachments/assets/7341792c-e3be-498f-b990-fbdec97b5f83"
+       alt="หน้ารายการ: รายการล่าสุด"
+       height="520" />
+</p>
+
+<!-- แถวที่ 2 -->
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/b2489729-0ffa-45b6-8cf9-7327e484c685"
+       alt="หน้าสรุป: รายจ่ายแบบ Pie Chart"
+       height="520" />
+  &nbsp;&nbsp;
+  <img src="https://github.com/user-attachments/assets/ee2034dc-a868-48f2-ade1-fd135bf6f014"
+       alt="หน้าสรุป: รายรับแบบ Pie Chart"
+       height="520" />
+</p>
+
+
+---
+
+## ความต้องการระบบ
+
+- Flutter 3.16 ขึ้นไป 
+- Xcode + iOS Simulator (สำหรับ iOS) หรือ Android Studio + Android SDK (สำหรับ Android)
+
+---
+
+## วิธีใช้งาน
+
+1. เปิดแอป → ไปที่ **หน้ารายการ (Home)**
+2. แตะ **➕ เพิ่มรายการ** → เลือกชนิด **(รายรับ / รายจ่าย)** → กรอก **หมวดหมู่, จำนวนเงิน, วันที่, หมายเหตุ** → กด **บันทึก**
+3. สลับแท็บไปที่ **สรุป (Summary)**
+4. เลือกมุมมอง **รายจ่าย / รายรับ** และช่วงเวลา **รายวัน / รายเดือน** เพื่อดูภาพรวม
+5. เลื่อนดู **รายการสรุปตามหมวด** ใต้กราฟได้ครบทั้งหมด *(ไม่ตัดบรรทัด)*
+6. กลับไป **หน้าหลัก** เพื่อดู **การ์ดสรุป** และ **รายการล่าสุด** ได้ตลอดเวลา
