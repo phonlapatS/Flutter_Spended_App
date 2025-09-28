@@ -57,6 +57,17 @@ A Expense tracker Flutter project.
 
 ---
 
+## โครงสร้างโฟลเดอร์
+
+lib/
+  pages/           # Home, Summary, EditTxn
+  providers/       # TxnProvider (โหลด/เพิ่ม/แก้ไข/ลบ + summary)
+  theme/           # สีและไอคอนของแต่ละหมวด
+  widgets/         # Txn tiles ฯลฯ
+  utils/           # format เงิน/วันที่
+
+---
+
 ## วิธีใช้งาน
 
 1. เปิดแอป → ไปที่ **หน้ารายการ (Home)**
