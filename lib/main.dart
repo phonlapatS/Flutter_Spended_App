@@ -24,7 +24,7 @@ class SpendLiteApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'SpendLite',
+      title: 'Spended จ่ายแล้วจด',
       theme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: const Color(0xFFFFD9C5),
