@@ -1,4 +1,3 @@
-// lib/pages/summary_page.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -16,7 +15,7 @@ class SummaryPage extends StatefulWidget {
 
 class _SummaryPageState extends State<SummaryPage> {
   RangeView _range = RangeView.month;
-  String _viewType = 'expense'; // 'expense' | 'income'
+  String _viewType = 'expense';
   late DateTime _month;
   late DateTime _day;
 
@@ -53,194 +52,170 @@ class _SummaryPageState extends State<SummaryPage> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('สรุปค่าใช้จ่าย')),
-      body: FutureBuilder<List<dynamic>>(
-        future: () async {
-          final Map<String, double> byCat = _range == RangeView.month
-              ? await p.monthlyByCategory(_month.year, _month.month, type: _viewType)
-              : await p.dailyByCategory(_day, type: _viewType);
-          Map<String, double>? monthSum;
-          if (_range == RangeView.month) {
-            monthSum = await p.monthlySummary(_month.year, _month.month);
-          }
-          return [byCat, monthSum];
-        }(),
-        builder: (context, snap) {
-          if (snap.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final data = (snap.data?[0] as Map<String, double>?) ?? {};
-          final monthSum = snap.data?[1] as Map<String, double>?; // อาจเป็น null เมื่อเป็นรายวัน
-          final total = data.values.fold<double>(0, (p, v) => p + v);
-
-          if (data.isEmpty || total == 0) {
-            return Center(
-              child: Text(
-                _viewType == 'expense'
-                    ? (_range == RangeView.month
-                        ? 'ยังไม่มีรายจ่ายในเดือนนี้'
-                        : 'ยังไม่มีรายจ่ายในวันนี้')
-                    : (_range == RangeView.month
-                        ? 'ยังไม่มีรายรับในเดือนนี้'
-                        : 'ยังไม่มีรายรับในวันนี้'),
-              ),
-            );
-          }
-
-          // สร้าง sections ของพาย
-          final sections = <PieChartSectionData>[];
-          data.forEach((cat, amount) {
-            final c = pickCategoryColor(_viewType, cat);
-            final pct = (amount / total) * 100;
-            sections.add(
-              PieChartSectionData(
-                value: amount,
-                title: '${pct.toStringAsFixed(0)}%',
-                titleStyle:
-                    const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                radius: 78,
-                color: c,
-              ),
-            );
-          });
-
-          // รายการ (เรียงจากมากไปน้อย)
-          final entries = data.entries.toList()
-            ..sort((a, b) => b.value.compareTo(a.value));
-
-          final monthIncome = (monthSum ?? const {})['income'] ?? 0.0;
-
-          return CustomScrollView(
-            slivers: [
-              // Header + ตัวกรอง
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                  child: Column(
+      body: CustomScrollView(
+        slivers: [
+          // หัวข้อ + ตัวกรอง (จะอยู่ให้กดได้เสมอ)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Column(
+                children: [
+                  Row(
                     children: [
-                      Row(
-                        children: [
-                          IconButton(onPressed: _prev, icon: const Icon(Icons.chevron_left)),
-                          Expanded(
-                            child: Text(
-                              title,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                  fontSize: 28, fontWeight: FontWeight.w800),
-                            ),
-                          ),
-                          IconButton(onPressed: _next, icon: const Icon(Icons.chevron_right)),
-                        ],
+                      IconButton(onPressed: _prev, icon: const Icon(Icons.chevron_left)),
+                      Expanded(
+                        child: Text(
+                          title,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
+                        ),
                       ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: SegmentedButton<String>(
-                              segments: const [
-                                ButtonSegment(value: 'expense', label: Text('รายจ่าย')),
-                                ButtonSegment(value: 'income', label: Text('รายรับ')),
-                              ],
-                              showSelectedIcon: false,
-                              style: const ButtonStyle(
-                                padding: WidgetStatePropertyAll(
-                                  EdgeInsets.symmetric(vertical: 6),
-                                ),
-                              ),
-                              selected: {_viewType},
-                              onSelectionChanged: (s) =>
-                                  setState(() => _viewType = s.first),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: SegmentedButton<RangeView>(
-                              segments: const [
-                                ButtonSegment(value: RangeView.day, label: Text('รายวัน')),
-                                ButtonSegment(value: RangeView.month, label: Text('รายเดือน')),
-                              ],
-                              showSelectedIcon: false,
-                              style: const ButtonStyle(
-                                padding: WidgetStatePropertyAll(
-                                  EdgeInsets.symmetric(vertical: 6),
-                                ),
-                              ),
-                              selected: {_range},
-                              onSelectionChanged: (s) =>
-                                  setState(() => _range = s.first),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
+                      IconButton(onPressed: _next, icon: const Icon(Icons.chevron_right)),
                     ],
                   ),
-                ),
-              ),
-
-              // Pie chart
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: AspectRatio(
-                    aspectRatio: 1.15,
-                    child: PieChart(
-                      PieChartData(
-                        sections: sections,
-                        centerSpaceRadius: 40,
-                        sectionsSpace: 2,
-                        borderData: FlBorderData(show: false),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SegmentedButton<String>(
+                          segments: const [
+                            ButtonSegment(value: 'expense', label: Text('รายจ่าย')),
+                            ButtonSegment(value: 'income', label: Text('รายรับ')),
+                          ],
+                          showSelectedIcon: false,
+                          style: const ButtonStyle(
+                            padding: WidgetStatePropertyAll(EdgeInsets.symmetric(vertical: 6)),
+                          ),
+                          selected: {_viewType},
+                          onSelectionChanged: (s) => setState(() => _viewType = s.first),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: SegmentedButton<RangeView>(
+                          segments: const [
+                            ButtonSegment(value: RangeView.day, label: Text('รายวัน')),
+                            ButtonSegment(value: RangeView.month, label: Text('รายเดือน')),
+                          ],
+                          showSelectedIcon: false,
+                          style: const ButtonStyle(
+                            padding: WidgetStatePropertyAll(EdgeInsets.symmetric(vertical: 6)),
+                          ),
+                          selected: {_range},
+                          onSelectionChanged: (s) => setState(() => _range = s.first),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                ],
               ),
+            ),
+          ),
 
-              // รวมยอด
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 8, bottom: 12),
-                  child: Center(
-                    child: Text(
-                      'รวม ${_viewType == "expense" ? "รายจ่าย" : "รายรับ"}: ${baht(total)}',
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+          // เนื้อหา (เลื่อนทั้งหน้าได้)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: FutureBuilder<List<dynamic>>(
+              future: () async {
+                final Map<String, double> byCat = _range == RangeView.month
+                    ? await p.monthlyByCategory(_month.year, _month.month, type: _viewType)
+                    : await p.dailyByCategory(_day, type: _viewType);
+                Map<String, double>? monthSum;
+                if (_range == RangeView.month) {
+                  monthSum = await p.monthlySummary(_month.year, _month.month);
+                }
+                return [byCat, monthSum];
+              }(),
+              builder: (context, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final data = (snap.data?[0] as Map<String, double>?) ?? {};
+                final monthSum = snap.data?[1] as Map<String, double>?;
+                final total = data.values.fold<double>(0, (p, v) => p + v);
+
+                if (data.isEmpty || total == 0) {
+                  // ยังคงเห็นแถบกรองด้านบน เพราะอยู่อีก Sliver
+                  return const Center(child: Text('ยังไม่มีข้อมูลในช่วงนี้'));
+                }
+
+                // ทำข้อมูล Pie
+                final sections = <PieChartSectionData>[];
+                data.forEach((cat, amount) {
+                  final c = pickCategoryColor(_viewType, cat);
+                  final pct = (amount / total) * 100;
+                  sections.add(
+                    PieChartSectionData(
+                      value: amount,
+                      title: '${pct.toStringAsFixed(0)}%',
+                      titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      radius: 78,
+                      color: c,
                     ),
-                  ),
-                ),
-              ),
-
-              // รายการสรุปหมวด (ขยายได้ไม่จำกัด)
-              SliverList.separated(
-                itemBuilder: (_, i) {
-                  final e = entries[i];
-                  final color = pickCategoryColor(_viewType, e.key);
-
-                  // ถ้าเป็น “รายเดือน + มุมมองรายจ่าย” และรู้ยอดรายรับรวม ให้คิด % ต่อรายรับรวม
-                  final String right;
-                  if (_range == RangeView.month &&
-                      _viewType == 'expense' &&
-                      monthIncome > 0) {
-                    right = '${(e.value / monthIncome * 100).toStringAsFixed(0)}%';
-                  } else {
-                    right = '${(e.value / total * 100).toStringAsFixed(0)}%';
-                  }
-
-                  return ListTile(
-                    leading: CircleAvatar(backgroundColor: color, radius: 6),
-                    title: Text(e.key),
-                    subtitle: Text(baht(e.value)),
-                    trailing:
-                        Text(right, style: const TextStyle(fontWeight: FontWeight.w600)),
                   );
-                },
-                separatorBuilder: (_, __) => const Divider(height: 1),
-                itemCount: entries.length,
-              ),
+                });
 
-              const SliverToBoxAdapter(child: SizedBox(height: 16)),
-            ],
-          );
-        },
+                final monthIncome = (monthSum ?? const {})['income'] ?? 0.0;
+
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      AspectRatio(
+                        aspectRatio: 1.15,
+                        child: PieChart(
+                          PieChartData(
+                            sections: sections,
+                            centerSpaceRadius: 40,
+                            sectionsSpace: 2,
+                            borderData: FlBorderData(show: false),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'รวม ${_viewType == "expense" ? "รายจ่าย" : "รายรับ"}: ${baht(total)}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // แสดงรายการหมวดทั้งหมด เลื่อนยาว ๆ
+                      ...List.generate(data.length, (i) {
+                        final e = data.entries.elementAt(i);
+                        final color = pickCategoryColor(_viewType, e.key);
+                        String right;
+                        if (_range == RangeView.month &&
+                            _viewType == 'expense' &&
+                            monthIncome > 0) {
+                          right = '${(e.value / monthIncome * 100).toStringAsFixed(0)}%';
+                        } else {
+                          right = '${(e.value / total * 100).toStringAsFixed(0)}%';
+                        }
+                        return Column(
+                          children: [
+                            ListTile(
+                              leading: CircleAvatar(backgroundColor: color, radius: 6),
+                              title: Text(e.key),
+                              subtitle: Text(baht(e.value)),
+                              trailing: Text(
+                                right,
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            const Divider(height: 1),
+                          ],
+                        );
+                      }),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
